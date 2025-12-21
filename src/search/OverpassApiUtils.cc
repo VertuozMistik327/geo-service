@@ -134,7 +134,7 @@ GeoProtoTaggedFeatures LoadCityDetailsByRelationId(WebClient& client, OsmId rela
    const std::string request = std::format(
       R"(
       [out:json];
-      rel(id: {})[boundary=administrative];
+      rel(id: {});
       map_to_area->.cityArea;
       (
       node[tourism=hotel](area.cityArea);
