@@ -54,3 +54,21 @@ EXPOSE 50051
 
 # Run the application
 CMD ["./geo", "--config", "geo-config.json"]
+
+# Stage 4: Runtime for test client
+FROM python:3.11-slim AS runtime_tests
+
+WORKDIR /
+
+# Copy test client and proto definitions
+COPY ./tests /tests
+COPY ./proto /proto
+
+# Install Python dependencies for the test client
+RUN pip install -r /tests/requirements.txt
+
+# Default server address
+ENV SERVER_ADDRESS=0.0.0.0:50051
+
+# Run the test client
+CMD ["python3", "/tests/main.py"]
