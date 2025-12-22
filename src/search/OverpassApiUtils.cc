@@ -16,8 +16,13 @@ using namespace geo;
 // Overpass API query format to find relations by name or English name.
 constexpr const char* sz_requestByNameFormat =  //
    "[out:json];"
+   "("
    "rel[\"name\"=\"{0}\"][\"boundary\"=\"administrative\"];"
-   "out ids;";  // Return ids.
+   "rel[\"name:en\"=\"{0}\"][\"boundary\"=\"administrative\"];"
+   "rel[\"name\"=\"{0}\"][\"place\"~\"^(city|town|state)$\"];"
+   "rel[\"name:en\"=\"{0}\"][\"place\"~\"^(city|town|state)$\"];"
+   ");"
+   "out ids;";
 
 // Overpass API query format to find relations by coordinates.
 constexpr const char* sz_requestByCoordinatesFormat =
