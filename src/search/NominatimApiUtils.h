@@ -27,7 +27,9 @@ struct RelationInfo
 {
    std::int64_t osmId = 0;  // OSM ID of the relation.
    std::string name;        // Name of the relation in the native language.
+   std::string name_en;     // Name of the relation in English.
    std::string country;     // Country name in the native language.
+   std::string country_en;  // Country name in English.
    double latitude = 0;     // Latitude of the relation's center.
    double longitude = 0;    // Longitude of the relation's center.
 };
