@@ -7,3 +7,18 @@ services:
     ports:
       - "50051:50051"
     user: root
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=0.0.0.0:50051"]
+      timeout: 300s
+      interval: 5s
+      retries: 5
+
+  geo-test-client:
+    network_mode: service:geo-service # make sure that the test client can connect to the service
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime_tests
+    depends_on:
+      geo-service:
+        condition: service_healthy
