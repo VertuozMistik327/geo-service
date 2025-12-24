@@ -5,6 +5,7 @@
 #include "search/SearchEngineItf.h"
 #include "utils/WebClient.h"
 
+#include <cstdint>
 #include <memory>
 
 namespace grpc
@@ -60,6 +61,10 @@ private:
 
    // A search engine for handling location-based queries, uses Overpass and Nominatim APIs.
    std::unique_ptr<ISearchEngine> m_searchEngine;
+
+   // Configuration parameters for bounding box partitioning in streaming queries.
+   std::uint32_t m_maxBoxWidth = 0;
+   std::uint32_t m_maxBoxHeight = 0;
 };
 
 }  // namespace geo
