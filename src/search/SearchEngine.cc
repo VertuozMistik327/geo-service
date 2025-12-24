@@ -89,7 +89,11 @@ GeoProtoPlaces findCities(const overpass::OsmIds& relationIds, nominatim::Match 
       GeoProtoPlace city = toGeoProtoPlace(i);
       if (includeDetails)
       {
-         // TODO
+         const auto features = overpass::LoadCityDetailsByRelationId(overpassApiClient, i.osmId);
+         for (const auto& feature : features)
+         {
+            *city.add_features() = feature;
+         }
       }
       result.emplace_back(std::move(city));
    }
