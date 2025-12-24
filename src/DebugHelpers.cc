@@ -82,7 +82,7 @@ void Search(
    GeoProtoPlaces regions;
    auto maxBoxWidth = configuration.GetInt64(sz_maxBoxWidthKey);
    auto maxBoxHeight = configuration.GetInt64(sz_maxBoxHeightKey);
-   for (auto& bbox : CreateBoundingBoxes(latitude, longitude, rangeKm, maxBoxWidth, maxBoxHeight))
+   for (auto& bbox : CreateBoundingBoxes(latitude, longitude, rangeKm * 1000, maxBoxWidth, maxBoxHeight))
    {
       auto iterationResult = handler(bbox, {filter, props});
       regions.insert(regions.begin(), iterationResult.begin(), iterationResult.end());
