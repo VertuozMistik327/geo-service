@@ -2,6 +2,7 @@
 
 #include "reactors/GetCitiesReactor.h"
 #include "reactors/GetRegionsReactor.h"
+#include "reactors/GetRegionsStreamReactor.h"
 #include "search/SearchEngine.h"
 #include "utils/ConfigConstants.h"
 #include "utils/Configuration.h"
@@ -14,6 +15,8 @@ GeoServiceImpl::GeoServiceImpl(const Configuration& configuration)
    , m_nominatimApiClient(configuration.GetString(sz_nominatimEndpointKey))  // Initialize Nominatim API client
    , m_searchEngine(
         std::make_unique<SearchEngine>(m_overpassApiClient, m_nominatimApiClient))  // Initialize search engine
+   , m_maxBoxWidth(static_cast<std::uint32_t>(configuration.GetInt64(sz_maxBoxWidthKey)))
+   , m_maxBoxHeight(static_cast<std::uint32_t>(configuration.GetInt64(sz_maxBoxHeightKey)))
 {
 }
 
@@ -32,7 +35,7 @@ grpc::ServerUnaryReactor* GeoServiceImpl::GetRegions(
 grpc::ServerWriteReactor<geoproto::RegionsResponse>* GeoServiceImpl::GetRegionsStream(
    grpc::CallbackServerContext* context, const geoproto::RegionsRequest* request)
 {
-   return nullptr;  // gRPC sends grpc::StatusCode::UNIMPLEMENTED to Client
+   return new GetRegionsStreamReactor(context, *request, *m_searchEngine, m_maxBoxWidth, m_maxBoxHeight);
 }
 
 grpc::ServerUnaryReactor* GeoServiceImpl::GetWeather(
