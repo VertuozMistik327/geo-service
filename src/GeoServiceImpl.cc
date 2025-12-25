@@ -2,6 +2,11 @@
 
 #include "reactors/GetCitiesReactor.h"
 #include "reactors/GetRegionsReactor.h"
+<<<<<<< Updated upstream
+=======
+#include "reactors/GetRegionsStreamReactor.h"
+#include "reactors/GetWeatherReactor.h"
+>>>>>>> Stashed changes
 #include "search/SearchEngine.h"
 #include "utils/ConfigConstants.h"
 #include "utils/Configuration.h"
@@ -12,8 +17,16 @@ namespace geo
 GeoServiceImpl::GeoServiceImpl(const Configuration& configuration)
    : m_overpassApiClient(configuration.GetString(sz_overpassEndpointKey))    // Initialize Overpass API client
    , m_nominatimApiClient(configuration.GetString(sz_nominatimEndpointKey))  // Initialize Nominatim API client
+<<<<<<< Updated upstream
    , m_searchEngine(
         std::make_unique<SearchEngine>(m_overpassApiClient, m_nominatimApiClient))  // Initialize search engine
+=======
+   , m_openMeteoApiClient(configuration.GetString(sz_openMeteoEndpointKey))  // Initialize Open Meteo API client
+   , m_searchEngine(std::make_unique<SearchEngine>(
+        m_overpassApiClient, m_nominatimApiClient, m_openMeteoApiClient))  // Initialize search engine
+   , m_maxBoxWidth(static_cast<std::uint32_t>(configuration.GetInt64(sz_maxBoxWidthKey)))
+   , m_maxBoxHeight(static_cast<std::uint32_t>(configuration.GetInt64(sz_maxBoxHeightKey)))
+>>>>>>> Stashed changes
 {
 }
 
@@ -38,7 +51,7 @@ grpc::ServerWriteReactor<geoproto::RegionsResponse>* GeoServiceImpl::GetRegionsS
 grpc::ServerUnaryReactor* GeoServiceImpl::GetWeather(
    grpc::CallbackServerContext* context, const geoproto::WeatherRequest* request, ::geoproto::WeatherResponse* response)
 {
-   return nullptr;  // gRPC sends grpc::StatusCode::UNIMPLEMENTED to Client
+   return new GetWeatherReactor(context, *request, *response, *m_searchEngine);
 }
 
 }  // namespace geo

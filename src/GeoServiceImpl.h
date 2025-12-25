@@ -54,9 +54,10 @@ public:
       ::geoproto::WeatherResponse* response) override;
 
 private:
-   // WebClient instances to interact with the Overpass API and Nominatim API for geographic data.
+   // WebClient instances to interact with the Overpass API, Nominatim API and Open Meteo API.
    WebClient m_overpassApiClient;
    WebClient m_nominatimApiClient;
+   WebClient m_openMeteoApiClient;
 
    // A search engine for handling location-based queries, uses Overpass and Nominatim APIs.
    std::unique_ptr<ISearchEngine> m_searchEngine;

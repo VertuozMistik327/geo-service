@@ -51,7 +51,8 @@ void Search(const std::string& name, const std::string& configFilePath)
    Configuration configuration(configFilePath.c_str());
    geo::WebClient overpassApiClient(configuration.GetString(sz_overpassEndpointKey));
    geo::WebClient nominatimApiClient(configuration.GetString(sz_nominatimEndpointKey));
-   geo::SearchEngine engine(overpassApiClient, nominatimApiClient);
+   geo::WebClient openMeteoApiClient(configuration.GetString(sz_openMeteoEndpointKey));
+   geo::SearchEngine engine(overpassApiClient, nominatimApiClient, openMeteoApiClient);
    auto cities = engine.FindCitiesByName(name, true);
    printDetails(cities);
 }
@@ -61,7 +62,8 @@ void Search(double latitude, double longitude, const std::string& configFilePath
    Configuration configuration(configFilePath.c_str());
    geo::WebClient overpassApiClient(configuration.GetString(sz_overpassEndpointKey));
    geo::WebClient nominatimApiClient(configuration.GetString(sz_nominatimEndpointKey));
-   geo::SearchEngine engine(overpassApiClient, nominatimApiClient);
+   geo::WebClient openMeteoApiClient(configuration.GetString(sz_openMeteoEndpointKey));
+   geo::SearchEngine engine(overpassApiClient, nominatimApiClient, openMeteoApiClient);
    auto cities = engine.FindCitiesByPosition(latitude, longitude, true);
    printDetails(cities);
 }
@@ -76,7 +78,8 @@ void Search(
    Configuration configuration(configFilePath.c_str());
    geo::WebClient overpassApiClient(configuration.GetString(sz_overpassEndpointKey));
    geo::WebClient nominatimApiClient(configuration.GetString(sz_nominatimEndpointKey));
-   geo::SearchEngine engine(overpassApiClient, nominatimApiClient);
+   geo::WebClient openMeteoApiClient(configuration.GetString(sz_openMeteoEndpointKey));
+   geo::SearchEngine engine(overpassApiClient, nominatimApiClient, openMeteoApiClient);
    auto handler = engine.StartFindRegions();
 
    GeoProtoPlaces regions;
@@ -96,7 +99,8 @@ void RequestWeather(double latitude, double longitude, const std::string& fromDa
    Configuration configuration(configFilePath.c_str());
    geo::WebClient overpassApiClient(configuration.GetString(sz_overpassEndpointKey));
    geo::WebClient nominatimApiClient(configuration.GetString(sz_nominatimEndpointKey));
-   geo::SearchEngine engine(overpassApiClient, nominatimApiClient);
+   geo::WebClient openMeteoApiClient(configuration.GetString(sz_openMeteoEndpointKey));
+   geo::SearchEngine engine(overpassApiClient, nominatimApiClient, openMeteoApiClient);
 
    const auto weather = engine.GetWeather(latitude, longitude, {StringToDate(fromDate), StringToDate(toDate)});
    printDetails(weather);

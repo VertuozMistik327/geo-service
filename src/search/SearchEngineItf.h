@@ -48,8 +48,14 @@ public:
    using IncrementalSearchHandler = std::function<GeoProtoPlaces(const BoundingBox&, const RegionPreferences&)>;
    virtual IncrementalSearchHandler StartFindRegions() = 0;
 
-   // Returns weather for given location.
-   virtual WeatherInfoVector GetWeather(double latitude, double longitude, const DateRange& dateRange) = 0;
+   // Returns aggregated weather for given location using historical data.
+   // @param latitude: Latitude of the location.
+   // @param longitude: Longitude of the location.
+   // @param dateRange: Date range for which to request weather.
+   // @param numYears: Number of historical years to aggregate (default: 3).
+   // @return: Aggregated weather data from all requested years.
+   virtual WeatherInfoVector GetWeather(
+      double latitude, double longitude, const DateRange& dateRange, std::uint32_t numYears = 3) = 0;
 };
 
 }  // namespace geo
