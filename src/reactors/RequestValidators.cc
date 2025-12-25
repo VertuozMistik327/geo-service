@@ -55,4 +55,35 @@ const char* ValidateRegionsRequest(const geoproto::RegionsRequest& request)
    return nullptr;
 }
 
+const char* ValidateWeatherRequest(const geoproto::WeatherRequest& request)
+{
+   // Check if at least one location is provided
+   if (request.locations_size() == 0)
+      return "At least one location must be set in WeatherRequest";
+
+   // Validate each location's coordinates
+   for (const auto& location : request.locations())
+   {
+      if (!geo::IsValidLatitude(location.latitude()))
+         return "Wrong latitude in WeatherRequest";
+
+      if (!geo::IsValidLongitude(location.longitude()))
+         return "Wrong longitude in WeatherRequest";
+   }
+
+   // Check if date range is provided
+   if (!request.has_from_date() || !request.has_to_date())
+      return "Date range must be set in WeatherRequest";
+
+   // Check that from_date <= to_date
+   if (request.from_date().seconds() > request.to_date().seconds())
+      return "from_date must be before or equal to to_date in WeatherRequest";
+
+   // Check if num_years is valid (at least 1)
+   if (request.num_years() == 0)
+      return "num_years must be at least 1 in WeatherRequest";
+
+   return nullptr;
+}
+
 }  // namespace geo

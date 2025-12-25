@@ -3,6 +3,7 @@
 #include "../utils/GeoUtils.h"
 #include "../utils/WebClient.h"
 #include "NominatimApiUtils.h"
+#include "OpenMeteoApiUtils.h"
 #include "OverpassApiUtils.h"
 #include "ProtoTypes.h"
 #include "SearchEngineItf.h"
@@ -12,6 +13,10 @@
 
 #include <algorithm>
 #include <format>
+#include <future>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 namespace
 {
@@ -172,9 +177,10 @@ bool isValidBoundingBox(const BoundingBox& bbox)
 namespace geo
 {
 
-SearchEngine::SearchEngine(WebClient& overpassApiClient, WebClient& nominatimApiClient)
+SearchEngine::SearchEngine(WebClient& overpassApiClient, WebClient& nominatimApiClient, WebClient& openMeteoApiClient)
    : m_overpassApiClient(overpassApiClient)
    , m_nominatimApiClient(nominatimApiClient)
+   , m_openMeteoApiClient(openMeteoApiClient)
 {
 }
 
@@ -206,9 +212,71 @@ ISearchEngine::IncrementalSearchHandler SearchEngine::StartFindRegions()
       });
 }
 
-WeatherInfoVector SearchEngine::GetWeather(double latitude, double longitude, const DateRange& dateRange)
+WeatherInfoVector SearchEngine::GetWeather(
+   double latitude, double longitude, const DateRange& dateRange, std::uint32_t numYears)
 {
-   return {};
+   // Get current time to determine historical ranges
+   const TimePoint now = std::chrono::system_clock::now();
+
+   // Collect historical date ranges for the given number of years
+   const std::vector<DateRange> historicalRanges = openmeteo::CollectHistoricalRanges(dateRange, now, numYears);
+
+   if (historicalRanges.empty())
+   {
+      LOG(ERROR) << "No historical ranges available for weather request";
+      return {};
+   }
+
+   LOG(INFO) << std::format(
+      "Requesting weather for ({}, {}) with {} historical ranges", latitude, longitude, historicalRanges.size());
+
+   // Launch parallel requests for each historical range
+   std::vector<std::future<WeatherInfoVector>> futures;
+   futures.reserve(historicalRanges.size());
+
+   for (const auto& range : historicalRanges)
+   {
+      futures.push_back(std::async(std::launch::async,
+         [this, latitude, longitude, range]() -> WeatherInfoVector
+         {
+            // Retry logic for rate limiting (Open Meteo may limit request frequency)
+            constexpr int sc_maxRetries = 3;
+            constexpr auto sc_retryDelay = std::chrono::milliseconds(1000);
+
+            for (int attempt = 0; attempt < sc_maxRetries; ++attempt)
+            {
+               WeatherInfoVector result =
+                  openmeteo::LoadHistoricalWeather(m_openMeteoApiClient, latitude, longitude, range);
+               if (!result.empty())
+                  return result;
+
+               // Wait before retrying (in case of rate limiting)
+               if (attempt < sc_maxRetries - 1)
+               {
+                  LOG(WARNING) << std::format("Weather request failed for range {}-{}, retrying ({}/{})",
+                     DateToString(range.first), DateToString(range.second), attempt + 1, sc_maxRetries);
+                  std::this_thread::sleep_for(sc_retryDelay * (attempt + 1));
+               }
+            }
+
+            LOG(ERROR) << std::format("Failed to get weather for range {}-{} after {} attempts",
+               DateToString(range.first), DateToString(range.second), sc_maxRetries);
+            return {};
+         }));
+   }
+
+   // Collect results from all futures
+   WeatherInfoVector aggregatedResult;
+   for (auto& future : futures)
+   {
+      WeatherInfoVector partialResult = future.get();
+      aggregatedResult.insert(aggregatedResult.end(), std::make_move_iterator(partialResult.begin()),
+         std::make_move_iterator(partialResult.end()));
+   }
+
+   LOG(INFO) << std::format(
+      "Collected {} weather data points for ({}, {})", aggregatedResult.size(), latitude, longitude);
+   return aggregatedResult;
 }
 
 // Finds and returns region information within a bounding box, filtering by preferences and tracking processed IDs
