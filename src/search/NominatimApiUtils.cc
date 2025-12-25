@@ -9,10 +9,12 @@
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
 
+#include <array>
 #include <charconv>
 #include <cmath>
 #include <format>
 #include <string>
+#include <unordered_map>
 
 namespace
 {
@@ -85,12 +87,13 @@ void forEachChunk(const OsmIds& relationIds, THandler fn)
 // @param client: WebClient instance to interact with the Nominatim API.
 // @param responseHandler: Handler function to process each API response.
 template <typename THandler>
-void splitInChunksAndParseResponses(const OsmIds& relationIds, WebClient& client, THandler responseHandler)
+void splitInChunksAndParseResponses(
+   const OsmIds& relationIds, WebClient& client, THandler responseHandler, const char* language = nullptr)
 {
    forEachChunk(relationIds,
-      [&client, responseHandler](const auto& itBegin, const auto& itEnd)
+      [&client, responseHandler, language](const auto& itBegin, const auto& itEnd)
       {
-         const std::string request = formatRelationLookupRequest(itBegin, itEnd);
+         const std::string request = formatRelationLookupRequest(itBegin, itEnd, language);
          const std::string response = client.Get(request);
          if (response.empty())
             return;
@@ -110,21 +113,58 @@ namespace geo::nominatim
 RelationInfos LookupRelationInformation(const OsmIds& relationIds, WebClient& nominatimApiClient)
 {
    RelationInfos regions;
-   splitInChunksAndParseResponses(relationIds, nominatimApiClient,
-      [&regions](const rapidjson::Document& document)
+   std::unordered_map<OsmId, std::size_t> pendingIdsForEnglishNames;
+
+   auto handleResponse = [&regions, &pendingIdsForEnglishNames](const rapidjson::Document& document, bool isEnglish)
+   {
+      for (const auto& item : document.GetArray())
       {
-         for (const auto& item : document.GetArray())
-            regions.emplace_back(
-               jsonToObject<RelationInfo>(item, json::GetString(json::Get(item, "addresstype")).data()));
+         const auto addressType = json::GetString(json::Get(item, "addresstype"));
+         const auto osmId = json::GetInt64(json::Get(item, "osm_id"));
+         if (osmId == 0 || addressType.empty())
+            continue;
+
+         if (!pendingIdsForEnglishNames.contains(osmId))
+         {
+            if (isEnglish)
+               continue;  // Fill English fields only for already known entries.
+
+            regions.emplace_back(jsonToObject<RelationInfo>(item, std::string(addressType)));
+            pendingIdsForEnglishNames.emplace(osmId, regions.size() - 1);
+         }
+         else if (isEnglish)
+         {
+            auto& info = regions.at(pendingIdsForEnglishNames.at(osmId));
+            info.name_en = json::GetString(json::Get(item, "address", addressType.data()));
+            info.country_en = json::GetString(json::Get(item, "address", "country"));
+         }
+      }
+   };
+
+   splitInChunksAndParseResponses(relationIds, nominatimApiClient,
+      [&handleResponse](const rapidjson::Document& document)
+      {
+         handleResponse(document, false);
       });
+
+   splitInChunksAndParseResponses(
+      relationIds, nominatimApiClient,
+      [&handleResponse](const rapidjson::Document& document)
+      {
+         handleResponse(document, true);
+      },
+      "en");
+
    return regions;
 }
 
 RelationInfos LookupRelationInformationForCities(const OsmIds& relationIds, Match match, WebClient& nominatimApiClient)
 {
    RelationInfos cities;
+   std::unordered_map<OsmId, std::size_t> pendingIdsForEnglishNames;
+
    splitInChunksAndParseResponses(relationIds, nominatimApiClient,
-      [&cities, match](const rapidjson::Document& document)
+      [&cities, &pendingIdsForEnglishNames, match](const rapidjson::Document& document)
       {
          auto areCloseCoordinates = [](const RelationInfo& c1, const RelationInfo& c2)
          {
@@ -167,6 +207,7 @@ RelationInfos LookupRelationInformationForCities(const OsmIds& relationIds, Matc
                   if (needAdd)
                   {
                      cities.emplace_back(std::move(newObject));
+                     pendingIdsForEnglishNames.emplace(cities.back().osmId, cities.size() - 1);
 #ifndef NDEBUG
                      LOG(INFO) << std::format("addresstype {}, osm_id {}, lat {}, lon {}", type,
                         json::GetInt64(json::Get(item, "osm_id")), json::GetString(json::Get(item, "lat")),
@@ -181,6 +222,28 @@ RelationInfos LookupRelationInformationForCities(const OsmIds& relationIds, Matc
                break;
          }
       });
+
+   splitInChunksAndParseResponses(
+      relationIds, nominatimApiClient,
+      [&pendingIdsForEnglishNames, &cities](const rapidjson::Document& document)
+      {
+         for (const auto& item : document.GetArray())
+         {
+            const auto addresstype = json::GetString(json::Get(item, "addresstype"));
+            const auto osmId = json::GetInt64(json::Get(item, "osm_id"));
+            if (osmId == 0)
+               continue;
+
+            if (!pendingIdsForEnglishNames.contains(osmId))
+               continue;
+
+            auto& info = cities.at(pendingIdsForEnglishNames.at(osmId));
+            info.name_en = json::GetString(json::Get(item, "address", addresstype.data()));
+            info.country_en = json::GetString(json::Get(item, "address", "country"));
+         }
+      },
+      "en");
+
    return cities;
 }
 

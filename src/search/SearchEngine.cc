@@ -60,6 +60,8 @@ GeoProtoPlace toGeoProtoPlace(const nominatim::RelationInfo& info)
 {
    GeoProtoPlace location;
    location.set_name(info.name);
+   location.set_name_en(info.name_en);
+   location.set_country_en(info.country_en);
    location.set_country(info.country);
    location.mutable_center()->set_latitude(info.latitude);
    location.mutable_center()->set_longitude(info.longitude);
